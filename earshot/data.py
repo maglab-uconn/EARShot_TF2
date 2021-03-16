@@ -74,10 +74,14 @@ class Manifest(object):
         print("Number of unique word utterances by each talker.")
         print(self.manifest.groupby('Talker').count()['Word'])
 
-    def generate_category_dict(self, pronounce_text='./Pronunciation_Data_1K.New.txt'):
+
+    def generate_category_dict(self, pronounce_text):
         '''
         For each word, determines its cohorts, rhymes, DAS neighbors, and unrelated words from the
         pronunciation file.
+
+        Make sure your pronunciation file matches the one used in training, or there will be a
+        mismatch between the category dict and the manifest you used to train.
         '''
         pronounce_df = pd.read_csv(pronounce_text, sep='\t', names=['Word','Pronounce'])
         self.category_dict = {}
