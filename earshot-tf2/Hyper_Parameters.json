@@ -2,7 +2,7 @@
     "Pattern": {
         "Lexicon_File": "/Users/kevinbrown/projects/psycholing/earshot/results/2020.06.19/Pronunciation_Data_1K.Modified.txt",
         "Wav_Path": "/Users/kevinbrown/data/language/speech/WAV/EARSHOT_NEW_WAVS",
-        "Pattern_Path": "./Pattern_Data/spin1bal-30",
+        "Pattern_Path": "/Users/kevinbrown/scratch/test-pattern",
         "Metadata_File": "METADATA.PICKLE",
 
         "Acoustic": {
@@ -23,7 +23,7 @@
             }
         },
         "Semantic": {
-            "Mode": "PGD",
+            "Mode": "SRV",
             "SRV": {
                 "Size": 300,
                 "Assign_Number": 30

@@ -2,9 +2,9 @@ import os, io, librosa, pickle, json
 import numpy as np
 from random import sample
 from Audio import *
-from concurrent.futures import ThreadPoolExecutor as PE
+import concurrent.futures
 
-with open('parameters-generator.json', 'r') as f:
+with open('Hyper_Parameters.json', 'r') as f:
     hp_Dict = json.load(f)
 
 #Global constants
@@ -39,19 +39,12 @@ elif hp_Dict['Pattern']['Semantic']['Mode'].upper() == 'PGD':
             for word, pattern in pickle.load(f).items()
             if word.upper() in using_Word_List
             }
-    # This is not a good idea; if you want to treat the semantic vectors this way, you should pre-process the
-    #   dictionary first
-    #pattern_Min, pattern_Max = np.inf, -np.inf
-    #for pattern in semantic_Dict.values():
-    #    pattern_Min =  np.minimum(pattern_Min, np.min(pattern))
-    #    pattern_Max =  np.maximum(pattern_Max, np.max(pattern))
-    #semantic_Dict = {word: (pattern - pattern_Min) / (pattern_Max - pattern_Min) for word, pattern in semantic_Dict.items()}
 
     if len(semantic_Dict) < len(using_Word_List):
         raise ValueError('Some words are not in pre generated dict. {} : {}'.format(len(semantic_Dict), len(using_Word_List)))
 
 
-def Pattern_File_Geneate(
+def Pattern_File_Generate(
     word,
     pronunciation,
     identifier, #In paper, this is 'talker'.
@@ -78,7 +71,7 @@ def Pattern_File_Geneate(
             num_freq= hp_Dict['Pattern']['Acoustic']['Spectrogram']['Dimension'],
             frame_shift_ms= hp_Dict['Pattern']['Acoustic']['Spectrogram']['Frame_Shift'],
             frame_length_ms= hp_Dict['Pattern']['Acoustic']['Spectrogram']['Frame_Length'],
-            sample_rate= hp_Dict['Pattern']['Acoustic']['Spectrogram']['Sample_Rate'],
+            samp_rate= hp_Dict['Pattern']['Acoustic']['Spectrogram']['Sample_Rate'],
             )
         new_Pattern_Dict['Acoustic'] = np.transpose(spec).astype(np.float32)    # [Time, Dim]
     elif hp_Dict['Pattern']['Acoustic']['Mode'].upper() == 'Mel'.upper():
@@ -91,13 +84,13 @@ def Pattern_File_Geneate(
             frame_length = 32,
             hop_length=16
             )[0]
-        mel = melspectrogram(
+        mel = mel_spectrogram(
             sig,
             num_freq= hp_Dict['Pattern']['Acoustic']['Mel']['Spectrogram_Dimension'],
             frame_shift_ms= hp_Dict['Pattern']['Acoustic']['Mel']['Frame_Shift'],
             frame_length_ms= hp_Dict['Pattern']['Acoustic']['Mel']['Frame_Length'],
             num_mels= hp_Dict['Pattern']['Acoustic']['Mel']['Dimension'],
-            sample_rate= hp_Dict['Pattern']['Acoustic']['Mel']['Sample_Rate'],
+            samp_rate= hp_Dict['Pattern']['Acoustic']['Mel']['Sample_Rate'],
             max_abs_value= hp_Dict['Pattern']['Acoustic']['Mel']['Max_Abs']
             )
         new_Pattern_Dict['Acoustic'] = np.transpose(mel).astype(np.float32)
@@ -236,21 +229,26 @@ def Get_File_List():
 
 if __name__ == '__main__':
     os.makedirs(hp_Dict['Pattern']['Pattern_Path'], exist_ok= True)
-    max_Worker=10
+    max_workers = 10
 
     file_List = Get_File_List()
 
-    print(semantic_Dict)
+    
+    future_to_item = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for word,pron,talker,wav_file in file_List:
+            future_to_item[executor.submit(Pattern_File_Generate,word,pron,talker,wav_file)] = (word,pron,talker,wav_file)
+        for future in concurrent.futures.as_completed(future_to_item):
+            word,pron,talker,wav_file = future_to_item[future]
+            try:
+                data = future.result()
+            except:
+                print('{},{} pair generated an exception.'.format(word,talker))
+            else:
+                print('{}:{} pair ({}) processed.'.format(word,talker,wav_file))
 
-    with PE(max_workers = max_Worker) as pe:
-        for word, pronunciation, talker, voice_File_Path in file_List:
-            pe.submit(
-                Pattern_File_Geneate,
-                word,
-                pronunciation,
-                talker, #In paper, identifier is 'talker'.
-                voice_File_Path
-                )
+    #word,pron,talker,wav_file = file_List[0]
+    #Pattern_File_Generate(word,pron,talker,wav_file)
 
     Metadata_Generate()
 

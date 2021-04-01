@@ -12,22 +12,23 @@ def preemphasis(x, preemphasis = 0.97):
 def inv_preemphasis(x, preemphasis = 0.97):
     return signal.lfilter([1], [1, -preemphasis], x)
 
-def spectrogram(y, dimension, frame_shift, frame_len, samp_rate, ref_level_db = 20):
+def spectrogram(y, num_freq, frame_shift_ms, frame_length_ms, samp_rate, ref_level_db = 20):
     '''
     Computes a spectogram with dimension frequencies from a time series/audio signal.
     '''
-    D = _stft(preemphasis(y), dimension, frame_shift, frame_len, samp_rate)
+    D = _stft(preemphasis(y), num_freq, frame_shift_ms, frame_length_ms, samp_rate)
     S = _amp_to_db(np.abs(D)) - ref_level_db
     return _normalize(S)
 
-def mel_spectrogram(y, spec_dimension, frame_shift, frame_len, dimension, samp_rate, max_abs = None):
+def mel_spectrogram(y, num_freq, frame_shift_ms, frame_length_ms, num_mels, samp_rate, max_abs_value = None):
     '''
     Computes a mel spectogram with spec_dimension resolution and dimension mel components
     from a time series/audio signal.
     '''
-    D = _stft(preemphasis(y), spec_dimension, frame_shift, frame_len, samp_rate)
-    S = _amp_to_db(_linear_to_mel(np.abs(D), spec_dimension, dimension, samp_rate))
-    return _normalize(S) if max_abs is None else _symmetric_normalize(S, max_abs_value= max_abs)
+    D = _stft(preemphasis(y), num_freq, frame_shift_ms, frame_length_ms, samp_rate)
+    S = _amp_to_db(_linear_to_mel(np.abs(D), num_freq, num_mels, samp_rate))
+    return _normalize(S) if max_abs_value is None else _symmetric_normalize(S, max_abs_value= max_abs_value)
+
 
 def inv_spectrogram(spectrogram, num_freq, frame_shift_ms, frame_length_ms, sample_rate, ref_level_db = 20, power = 1.5, griffin_lim_iters= 60):
     '''Converts spectrogram to waveform using librosa'''
@@ -62,13 +63,13 @@ def _stft_parameters(num_freq, frame_shift_ms, frame_length_ms, sample_rate):
     return n_fft, hop_length, win_length
 
 
-def _linear_to_mel(spectrogram, num_freq, num_mels, sample_rate):
-    _mel_basis = _build_mel_basis(num_freq, num_mels, sample_rate)
+def _linear_to_mel(spectrogram, num_freq, num_mels, samp_rate):
+    _mel_basis = _build_mel_basis(num_freq, num_mels, samp_rate)
     return np.dot(_mel_basis, spectrogram)
 
-def _build_mel_basis(num_freq, num_mels, sample_rate):
+def _build_mel_basis(num_freq, num_mels, samp_rate):
     n_fft = (num_freq - 1) * 2
-    return librosa.filters.mel(sample_rate, n_fft, n_mels=num_mels)
+    return librosa.filters.mel(samp_rate, n_fft, n_mels=num_mels)
 
 def _amp_to_db(x):
     return 20 * np.log10(np.maximum(1e-5, x))
