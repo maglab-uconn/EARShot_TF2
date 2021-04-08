@@ -20,6 +20,15 @@ def closest_power(x):
     possible_results = math.floor(math.log(x, 2)), math.ceil(math.log(x, 2))
     return min(possible_results, key= lambda z: abs(x-2**z))
 
+def vector_cosine(x,y):
+    '''
+    Slow but correct - can improve efficiency later.
+    '''
+    mag_x = sqrt(dot(x,x))
+    mag_y = sqrt(dot(y,y))
+    return dot(x,y)/(mag_x*mag_y)
+
+
 def pad(data_2d, ref_shape, pad_val=-9999):
     '''
     Pads a 2D matrix "data" with the pad_value to make it have shape ref_shape.
@@ -408,8 +417,72 @@ class Prediction(object):
         # creat df of unique words with associated labels
         self.unique_label_df = full_manifest[~full_manifest['Word'].duplicated()][['Word','Target']].reset_index()
 
-        self.cosine_sim_dict = self._calc_cosine()
+        self.cosine_sim_dict = self._calc_cosines()
 
+
+    def _calc_cosines(self):
+        '''
+        Calculates over-time cosine simularity of each prediction to every word in the training vocabulary.
+        Slow but understandable and hopefully also correct.
+
+        Returns a nested dictionary such that similarity_dict[w1][w2] is the similarity of the prediction of
+        the model for w1 to the semantic pattern associated with w2.
+        '''
+        similarity_dict = {}
+        # self.predictions is num_test_words x total time steps (+ pad) x semantic dim
+        total_l = self.predictions.shape[1]
+        for pred_dx in trange(self.predictions.shape[0]):
+            pred_word = self.prediction_df['Word'].iloc()[pred_dx]
+            similarity_dict[pred_word] = {}
+            for lex_dx in range(len(self.unique_label_df)):
+                test_word = self.unique_label_df['Word'].iloc()[lex_dx]
+                similarity_dict[pred_word][test_word] = np.zeros(total_l)
+                for t in range(total_l):
+                    similarity_dict[pred_word][test_word][t] = vector_cosine(self.predictions[pred_dx,t,:],self.unique_label_df['Target'].iloc()[lex_dx])
+        return similarity_dict
+
+
+    def calc_category_cosine(self, target_word, category_dict):
+        '''
+        Computes over-time cosine similarities of a given target word (which must be in the lexicon and hence
+        in the cosine similarity dictionary!) to different categories of word, definted by the category dict
+        (i.e., Target, Cohort, Rhyme, etc.)
+        '''
+        cosine_dict = {}
+        if '_' in target_word:
+            word_talker = target_word.split('_')
+            for k in category_dict[word_talker[0]].keys():
+                cosine_dict[k] = [self.cosine_sim_dict[target_word][x] for x in category_dict[word_talker[0]][k]]
+        else:
+            for k in category_dict[target_word].keys():
+                cosine_dict[k] = [self.cosine_sim_dict[target_word][x] for x in category_dict[target_word][k]]
+        return cosine_dict
+
+
+    def calc_category_flows(self,category_dict):
+        '''
+        Calculates grand mean category flows to targets, cohorts, rhymes, DAS neighbors, and unrelated words.
+        '''
+        grand_mean_dict = {}
+        # initialize the grand mean dict
+        first_word = list(category_dict.keys())[0]
+        for k in category_dict[first_word]:
+            grand_mean_dict[k] = list()
+        # now loop over all words we made predictions for
+        for word in self.cosine_sim_dict.keys():
+            cat_dict = self.calc_category_cosine(word,category_dict)
+            # some categories may be empty, so don't add them
+            for k in cat_dict:
+                if len(cat_dict[k]) != 0:
+                    gramd_mean_dict[k].append(cat_dict[k])
+        # now store in a data frame
+        grand_mean_df = pd.DataFrame()
+        for k in grand_mean_dict:
+            grand_mean_df[k] = np.vstack(grand_mean_dict[k]).mean(axis=0)
+        return grand_mean_df
+
+
+    """
     def _calc_cosine(self):
 
         # calculate cosine similarity of each prediction
@@ -502,7 +575,7 @@ class Prediction(object):
         #   I'm not sure it really needs to be promoted to a member variable
         # self.mean_cosine_df = mean_cosine_df
         return mean_cosine_df
-
+        """
 
     def plot_cosine_grand_mean(self, mean_cosine_df):
         '''
@@ -603,6 +676,7 @@ class Prediction(object):
         return self.rt_Dict
 
 
+# Cosines here may be busted as well
 class PairPredictions(object):
     '''
     Generates cosine simularities for a selected word pair across all talkers in the set.
@@ -656,9 +730,10 @@ class PairPredictions(object):
         self.predictions = fresh_model.predict(np.array(padded_spec),
                                                batch_size = 32,
                                                verbose=1)
-        self.cosine_dict = self._calc_cosine()
+        self.cosine_dict = self._calc_cosines()
 
-    def _calc_cosine(self):
+
+    def _calc_cosines(self):
         simularity_dict = {}
         Y = np.array(self._unique_label_df['Target'].to_list()).T
         for i in trange(len(self.predictions)):

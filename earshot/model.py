@@ -84,12 +84,12 @@ class EARSHOT(Model):
 
         # loss function and output activation are coupled, this sets them both
         if self.model_parameters.train_loss == 'CE':
-            #self.loss = losses.BinaryCrossentropy(from_logits=True)
-            self.loss = 'binary_crossentropy'
+            self.loss = losses.BinaryCrossentropy(from_logits=True)
+            #self.loss = 'binary_crossentropy'
             self.activation = tf.nn.sigmoid
         elif self.model_parameters.train_loss == 'MSE':
-            #self.loss = losses.MeanSquaredError()
-            self.loss = 'mean_squared_error'
+            self.loss = losses.MeanSquaredError()
+            #self.loss = 'mean_squared_error'
             self.activation = tf.nn.tanh
 
         # set learning rate schedule
