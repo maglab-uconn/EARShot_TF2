@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from earshot.phonology import *
 from earshot.audio import *
-from numpy import ones
+from numpy import ones,sqrt,dot,vstack
 from scipy import sparse, fftpack
 from tensorflow.keras.utils import Sequence
 from tqdm import tqdm,trange
@@ -478,7 +478,7 @@ class Prediction(object):
         # now store in a data frame
         grand_mean_df = pd.DataFrame()
         for k in grand_mean_dict:
-            grand_mean_df[k] = np.vstack(grand_mean_dict[k]).mean(axis=0)
+            grand_mean_df[k] = vstack(grand_mean_dict[k]).mean(axis=0)
         return grand_mean_df
 
 
