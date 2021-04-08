@@ -474,7 +474,7 @@ class Prediction(object):
             # some categories may be empty, so don't add them
             for k in cat_dict:
                 if len(cat_dict[k]) != 0:
-                    gramd_mean_dict[k].append(cat_dict[k])
+                    grand_mean_dict[k].append(cat_dict[k])
         # now store in a data frame
         grand_mean_df = pd.DataFrame()
         for k in grand_mean_dict:
