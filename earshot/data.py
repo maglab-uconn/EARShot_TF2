@@ -575,7 +575,7 @@ class Prediction(object):
         #   I'm not sure it really needs to be promoted to a member variable
         # self.mean_cosine_df = mean_cosine_df
         return mean_cosine_df
-        """
+
 
     def plot_cosine_grand_mean(self, mean_cosine_df):
         '''
@@ -583,8 +583,9 @@ class Prediction(object):
         '''
         mean_cosine_df.plot.line(xlabel='Time Steps',ylabel='Cosine Simularity', ylim=(0,1), title="Cosine Simularity Grand Mean")
         return plt.show()
+    """
 
-
+    # now that I've changed to a dictionary, this is broken
     def gen_RT(self, word, prediction_df, abs_threshold=0.4, rel_threshold=0.05, time_threshold=10):
         '''
         word = Target word to generate RTs for
